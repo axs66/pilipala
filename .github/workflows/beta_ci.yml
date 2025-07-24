@@ -33,14 +33,17 @@ jobs:
         id: get-first-parent-commit-count
         run: |
           version=$(yq e .version pubspec.yaml | cut -d "+" -f 1)
-          recent_release_tag=$(git tag -l | grep $version | egrep -v "[-|+]" || true)
-          if [[ "x$recent_release_tag" == "x" ]]; then
-            echo "当前版本tag不存在，请手动生成tag."
-            exit 1
-          fi
+          recent_release_tag=$(git tag -l | grep -E "^${version}([+-]|$)" | head -n 1 || true)
+          if [[ -z "$recent_release_tag" ]]; then
+          echo "未找到与版本 $version 匹配的 tag，跳过 commit 计数，使用 run_number 替代"
+          echo "count=${{ github.run_number }}" >> $GITHUB_OUTPUT
+          else
+          echo "找到 tag: $recent_release_tag"
           git log --oneline --first-parent $recent_release_tag..HEAD
           first_parent_commit_count=$(git rev-list --first-parent --count $recent_release_tag..HEAD)
           echo "count=$first_parent_commit_count" >> $GITHUB_OUTPUT
+          fi
+
 
       - name: 获取最后一次提交
         id: get-last-commit
